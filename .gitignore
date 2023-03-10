@@ -1,6 +1,7 @@
 # Compiler files
 cache/
 out/
+forge-cache
 
 # Ignores development broadcast logs
 !/broadcast
@@ -17,3 +18,5 @@ typechain-types
 #Hardhat files
 cache
 artifacts
+
+.idea

@@ -1,17 +1,34 @@
 [profile.default]
-src = 'contracts'
+src = 'src'
 out = 'out'
 libs = ['lib']
+test = 'test'
+cache = true
+cache_path = 'forge-cache'
+
+solc_version = '0.8.18'
+optimizer = true
+optimizer_runs = 4294967295
 via_ir = true
-solc_version = '0.8.17'
-optimizer_runs = 1_000_000
-fs_permissions = [{ access = "read", path = "./script/deployParameters/"}]
+sparse_mode = true
 
-[fmt]
-line_length = 120
-quote_style = 'single'
+verbosity = 3
+ffi = false
 
-[profile.lite.optimizer_details.yulDetails]
-optimizerSteps = ''
+[profile.default.optimizer_details]
+yul = true
+
+[fuzz]
+runs = 256
+
+[profile.lite]
+optimizer_runs = 200
+via_ir = false
+
+[profile.lite.fuzz]
+runs = 16
+
+[profile.lite.invariant]
+runs = 16
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
