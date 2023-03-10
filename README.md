@@ -28,6 +28,7 @@ contracts/protocols using a more friendly interface without the need to deploy h
 
 Refer to the original repo.
 
+```
    ┌──────┬───────────────────────────────┐
    │ 0x00 │  V3_SWAP_EXACT_IN             │
    ├──────┼───────────────────────────────┤
@@ -40,6 +41,8 @@ Refer to the original repo.
    │ 0x1e-│  -------                      │
    │ 0x3f │                               │
    └──────┴───────────────────────────────┘
+```
+
 ## Usage
 
 ### To Install Dependencies
