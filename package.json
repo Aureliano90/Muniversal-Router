@@ -1,6 +1,6 @@
 {
   "name": "Muniversal-Router",
-  "description": "A more universal router than Uniswap's Universal Router for NFT and ERC20 swapping",
+  "description": "A more universal router than Uniswap's Universal Router",
   "license": "GPL-3.0-or-later",
   "publishConfig": {
     "access": "public"
