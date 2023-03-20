@@ -3,9 +3,10 @@ pragma solidity ^0.8.17;
 
 import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {Callbacks} from "@uniswap/universal-router/contracts/base/Callbacks.sol";
-import {Permit2Payments} from "@uniswap/universal-router/contracts/modules/Permit2Payments.sol";
-import {V2SwapRouter} from "@uniswap/universal-router/contracts/modules/uniswap/v2/V2SwapRouter.sol";
-import {V3SwapRouter} from "@uniswap/universal-router/contracts/modules/uniswap/v3/V3SwapRouter.sol";
+//import {V3SwapRouter} from "@uniswap/universal-router/contracts/modules/uniswap/v3/V3SwapRouter.sol";
+import {IUniswapV2Pair} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import {V2SwapRouter} from "../modules/v2/V2SwapRouter.sol";
+import {Permit2Payments} from "../modules/Permit2Payments.sol";
 import {BytesLib} from "../libraries/BytesLib.sol";
 import {Commands} from "../libraries/Commands.sol";
 import {LockAndMsgSender} from "./LockAndMsgSender.sol";
@@ -16,7 +17,7 @@ import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol"
 abstract contract Dispatcher is
     Permit2Payments,
     V2SwapRouter,
-    V3SwapRouter,
+    //    V3SwapRouter,
     Callbacks,
     LockAndMsgSender
 {
@@ -65,13 +66,13 @@ abstract contract Dispatcher is
                         }
                         bytes calldata path = inputs.toBytes(3);
                         address payer = payerIsUser ? lockedBy : address(this);
-                        v3SwapExactInput(
-                            map(recipient),
-                            amountIn,
-                            amountOutMin,
-                            path,
-                            payer
-                        );
+                        //                        v3SwapExactInput(
+                        //                            map(recipient),
+                        //                            amountIn,
+                        //                            amountOutMin,
+                        //                            path,
+                        //                            payer
+                        //                        );
                     } else if (command == Commands.V3_SWAP_EXACT_OUT) {
                         // equivalent: abi.decode(inputs, (address, uint256, uint256, bytes, bool))
                         address recipient;
@@ -91,13 +92,13 @@ abstract contract Dispatcher is
                         }
                         bytes calldata path = inputs.toBytes(3);
                         address payer = payerIsUser ? lockedBy : address(this);
-                        v3SwapExactOutput(
-                            map(recipient),
-                            amountOut,
-                            amountInMax,
-                            path,
-                            payer
-                        );
+                        //                        v3SwapExactOutput(
+                        //                            map(recipient),
+                        //                            amountOut,
+                        //                            amountInMax,
+                        //                            path,
+                        //                            payer
+                        //                        );
                     } else if (command == Commands.PERMIT2_TRANSFER_FROM) {
                         // equivalent: abi.decode(inputs, (address, address, uint160))
                         address token;
@@ -164,7 +165,7 @@ abstract contract Dispatcher is
                     // 0x08 <= command < 0x10
                 } else {
                     if (command == Commands.V2_SWAP_EXACT_IN) {
-                        // equivalent: abi.decode(inputs, (address, uint256, uint256, bytes, bool))
+                        // equivalent: abi.decode(inputs, (address, uint256, uint256, address[], address[], bool))
                         address recipient;
                         uint256 amountIn;
                         uint256 amountOutMin;
@@ -177,20 +178,22 @@ abstract contract Dispatcher is
                             )
                             // 0x60 offset is the path, decoded below
                             payerIsUser := calldataload(
-                                add(inputs.offset, 0x80)
+                                add(inputs.offset, 0xa0)
                             )
                         }
                         address[] calldata path = inputs.toAddressArray(3);
+                        address[] calldata pairs = inputs.toAddressArray(4);
                         address payer = payerIsUser ? lockedBy : address(this);
                         v2SwapExactInput(
                             map(recipient),
                             amountIn,
                             amountOutMin,
                             path,
+                            pairs,
                             payer
                         );
                     } else if (command == Commands.V2_SWAP_EXACT_OUT) {
-                        // equivalent: abi.decode(inputs, (address, uint256, uint256, bytes, bool))
+                        // equivalent: abi.decode(inputs, (address, uint256, uint256, address[], address[], bool))
                         address recipient;
                         uint256 amountOut;
                         uint256 amountInMax;
@@ -203,16 +206,18 @@ abstract contract Dispatcher is
                             )
                             // 0x60 offset is the path, decoded below
                             payerIsUser := calldataload(
-                                add(inputs.offset, 0x80)
+                                add(inputs.offset, 0xa0)
                             )
                         }
                         address[] calldata path = inputs.toAddressArray(3);
+                        address[] calldata pairs = inputs.toAddressArray(4);
                         address payer = payerIsUser ? lockedBy : address(this);
                         v2SwapExactOutput(
                             map(recipient),
                             amountOut,
                             amountInMax,
                             path,
+                            pairs,
                             payer
                         );
                     } else if (command == Commands.PERMIT2_PERMIT) {
@@ -249,7 +254,7 @@ abstract contract Dispatcher is
                                 inputs,
                                 (IAllowanceTransfer.AllowanceTransferDetails[])
                             );
-                        permit2TransferFrom(batchDetails);
+                        permit2TransferFrom(batchDetails, lockedBy);
                     } else if (command == Commands.BALANCE_CHECK_ERC20) {
                         // equivalent: abi.decode(inputs, (address, address, uint256))
                         address owner;
@@ -281,6 +286,30 @@ abstract contract Dispatcher is
                         _commands,
                         _inputs
                     )
+                );
+            } else if (command == Commands.APPROVE_ERC20) {
+                address token;
+                uint256 spenderID;
+                assembly {
+                    token := calldataload(inputs.offset)
+                    spenderID := calldataload(add(inputs.offset, 0x20))
+                }
+                approveERC20(token, spenderID);
+            } else if (command == Commands.V2_FLASH_SWAP) {
+                address pair;
+                address tokenOut;
+                uint256 amountOut;
+                // Equivalent: abi.decode(inputs, (address, address, uint256, bytes))
+                assembly ("memory-safe") {
+                    pair := calldataload(inputs.offset)
+                    tokenOut := calldataload(add(inputs.offset, 0x20))
+                    amountOut := calldataload(add(inputs.offset, 0x40))
+                }
+                flashSwap(
+                    IUniswapV2Pair(pair),
+                    tokenOut,
+                    amountOut,
+                    inputs.toBytes(3)
                 );
             } else {
                 // placeholder area for commands 0x22-0x3f

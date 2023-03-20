@@ -5,8 +5,25 @@ pragma solidity ^0.8.17;
 import {Dispatcher} from "./base/Dispatcher.sol";
 import {Commands} from "./libraries/Commands.sol";
 import {IUniversalRouter} from "./interfaces/IUniversalRouter.sol";
+import {RouterImmutables} from "./base/RouterImmutables.sol";
 
-abstract contract MuniversalRouter is IUniversalRouter, Dispatcher {
+contract MuniversalRouter is IUniversalRouter, Dispatcher {
+    constructor(
+        address universal_router,
+        address permit2,
+        address weth9,
+        address v3Factory,
+        bytes32 poolInitCodeHash
+    )
+        RouterImmutables(
+            universal_router,
+            permit2,
+            weth9,
+            v3Factory,
+            poolInitCodeHash
+        )
+    {}
+
     modifier checkDeadline(uint256 deadline) {
         if (block.timestamp > deadline) revert TransactionDeadlinePassed();
         _;
