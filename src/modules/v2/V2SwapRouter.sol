@@ -2,10 +2,11 @@
 pragma solidity ^0.8.17;
 
 import {IUniswapV2Pair} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import {ERC20} from "solmate/src/tokens/ERC20.sol";
 import {UniswapV2Library} from "./UniswapV2Library.sol";
 import {Permit2Payments} from "../Permit2Payments.sol";
 import {Constants} from "../../libraries/Constants.sol";
-import {ERC20} from "solmate/src/tokens/ERC20.sol";
+import {TernaryLib} from "../../libraries/TernaryLib.sol";
 
 /// @title Router for Uniswap v2 Trades
 abstract contract V2SwapRouter is Permit2Payments {
@@ -20,9 +21,11 @@ abstract contract V2SwapRouter is Permit2Payments {
         uint256 amountOut,
         bytes calldata data
     ) internal {
-        (uint256 amount0Out, uint256 amount1Out) = tokenOut == pair.token0()
-            ? (amountOut, uint256(0))
-            : (uint256(0), amountOut);
+        (uint256 amount0Out, uint256 amount1Out) = TernaryLib.switchIf(
+            tokenOut == pair.token0(),
+            0,
+            amountOut
+        );
         pair.swap(amount0Out, amount1Out, address(this), data);
     }
 
@@ -36,7 +39,7 @@ abstract contract V2SwapRouter is Permit2Payments {
             if (path.length < 2) revert V2InvalidPath();
 
             // cached to save on duplicate operations
-            (address token0, ) = UniswapV2Library.sortTokens(path[0], path[1]);
+            (address token0, ) = TernaryLib.sortTokens(path[0], path[1]);
             uint256 finalPathIndex = pairs.length;
             uint256 penultimatePathIndex = finalPathIndex - 1;
             for (uint256 i; i < finalPathIndex; ++i) {
@@ -47,10 +50,8 @@ abstract contract V2SwapRouter is Permit2Payments {
                     (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(
                         pair
                     ).getReserves();
-                    (uint256 reserveInput, uint256 reserveOutput) = input ==
-                        token0
-                        ? (reserve0, reserve1)
-                        : (reserve1, reserve0);
+                    (uint256 reserveInput, uint256 reserveOutput) = TernaryLib
+                        .switchIf(input == token0, reserve1, reserve0);
                     uint256 amountInput = ERC20(input).balanceOf(pair) -
                         reserveInput;
                     uint256 amountOutput = UniswapV2Library.getAmountOut(
@@ -58,14 +59,16 @@ abstract contract V2SwapRouter is Permit2Payments {
                         reserveInput,
                         reserveOutput
                     );
-                    (amount0Out, amount1Out) = input == token0
-                        ? (uint256(0), amountOutput)
-                        : (amountOutput, uint256(0));
+                    (amount0Out, amount1Out) = TernaryLib.switchIf(
+                        input == token0,
+                        amountOutput,
+                        0
+                    );
                 }
                 address nextPair;
                 if (i < penultimatePathIndex) {
                     nextPair = pairs[i + 1];
-                    (token0, ) = UniswapV2Library.sortTokens(
+                    (token0, ) = TernaryLib.sortTokens(
                         path[i + 1],
                         path[i + 2]
                     );
@@ -99,7 +102,9 @@ abstract contract V2SwapRouter is Permit2Payments {
         address payer
     ) internal {
         uint256 pairsLength = pairs.length;
-        if (pairsLength != path.length - 1) revert V2InvalidPath();
+        unchecked {
+            if (pairsLength != path.length - 1) revert V2InvalidPath();
+        }
         address firstPair = pairs[0];
         if (
             amountIn != Constants.ALREADY_PAID // amountIn of 0 to signal that the pair already has the tokens
@@ -131,8 +136,9 @@ abstract contract V2SwapRouter is Permit2Payments {
         address[] calldata pairs,
         address payer
     ) internal {
-        uint256 pairsLength = pairs.length;
-        if (pairsLength != path.length - 1) revert V2InvalidPath();
+        unchecked {
+            if (pairs.length != path.length - 1) revert V2InvalidPath();
+        }
         (uint256 amountIn, address firstPair) = UniswapV2Library
             .getAmountInMultihop(amountOut, path, pairs);
         if (amountIn > amountInMaximum) revert V2TooMuchRequested();

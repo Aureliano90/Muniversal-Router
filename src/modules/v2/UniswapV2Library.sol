@@ -2,6 +2,7 @@
 pragma solidity >=0.5.0;
 
 import {IUniswapV2Pair} from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+import {TernaryLib} from "../../libraries/TernaryLib.sol";
 
 /// @title Uniswap v2 Helper Library
 /// @notice Calculates the recipient address for a command
@@ -57,30 +58,18 @@ library UniswapV2Library {
         if (pathLength < 2) revert InvalidPath();
         amount = amountOut;
         unchecked {
-            for (uint256 i = pathLength - 1; i > 0; i--) {
+            for (uint256 i = pathLength - 1; i > 0; --i) {
                 (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(
                     pairs[i - 1]
                 ).getReserves();
-                (uint256 reserveIn, uint256 reserveOut) = path[i - 1] < path[i]
-                    ? (reserve0, reserve1)
-                    : (reserve1, reserve0);
+                (uint256 reserveIn, uint256 reserveOut) = TernaryLib.switchIf(
+                    path[i - 1] < path[i],
+                    reserve1,
+                    reserve0
+                );
                 amount = getAmountIn(amount, reserveIn, reserveOut);
             }
         }
         pair = pairs[0];
-    }
-
-    /// @notice Sorts two tokens to return token0 and token1
-    /// @param tokenA The first token to sort
-    /// @param tokenB The other token to sort
-    /// @return token0 The smaller token by address value
-    /// @return token1 The larger token by address value
-    function sortTokens(
-        address tokenA,
-        address tokenB
-    ) internal pure returns (address token0, address token1) {
-        (token0, token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
     }
 }
