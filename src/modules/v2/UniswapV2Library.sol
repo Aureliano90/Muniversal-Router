@@ -59,9 +59,7 @@ library UniswapV2Library {
         amount = amountOut;
         unchecked {
             for (uint256 i = pathLength - 1; i > 0; --i) {
-                (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(
-                    pairs[i - 1]
-                ).getReserves();
+                (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(pairs[i - 1]).getReserves();
                 (uint256 reserveIn, uint256 reserveOut) = TernaryLib.switchIf(
                     path[i - 1] < path[i],
                     reserve1,

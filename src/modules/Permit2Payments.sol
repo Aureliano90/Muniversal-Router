@@ -18,24 +18,22 @@ abstract contract Permit2Payments is Payments {
     /// @param from The address to transfer from
     /// @param to The recipient of the transfer
     /// @param amount The amount to transfer
-    function permit2TransferFrom(
-        address token,
-        address from,
-        address to,
-        uint160 amount
-    ) internal {
+    function permit2TransferFrom(address token, address from, address to, uint160 amount) internal {
         PERMIT2.transferFrom(from, to, amount, token);
     }
 
     /// @notice Performs a batch transferFrom on Permit2
     /// @param batchDetails An array detailing each of the transfers that should occur
     function permit2TransferFrom(
-        IAllowanceTransfer.AllowanceTransferDetails[] memory batchDetails,
+        IAllowanceTransfer.AllowanceTransferDetails[] calldata batchDetails,
         address owner
     ) internal {
         uint256 batchLength = batchDetails.length;
-        for (uint256 i = 0; i < batchLength; ++i) {
+        for (uint256 i = 0; i < batchLength; ) {
             if (batchDetails[i].from != owner) revert FromAddressIsNotOwner();
+            unchecked {
+                ++i;
+            }
         }
         PERMIT2.transferFrom(batchDetails);
     }
@@ -45,12 +43,7 @@ abstract contract Permit2Payments is Payments {
     /// @param payer The address to pay for the transfer
     /// @param recipient The recipient of the transfer
     /// @param amount The amount to transfer
-    function payOrPermit2Transfer(
-        address token,
-        address payer,
-        address recipient,
-        uint256 amount
-    ) internal {
+    function payOrPermit2Transfer(address token, address payer, address recipient, uint256 amount) internal {
         if (payer == address(this)) pay(token, recipient, amount);
         else permit2TransferFrom(token, payer, recipient, amount.toUint160());
     }

@@ -24,13 +24,7 @@ contract RouterImmutables {
     /// @dev The bytes corresponding to UniswapV3Pool initcodehash
     bytes32 internal immutable UNISWAP_V3_POOL_INIT_CODE_HASH;
 
-    constructor(
-        address universal_router,
-        address permit2,
-        address weth9,
-        address v3Factory,
-        bytes32 poolInitCodeHash
-    ) {
+    constructor(address universal_router, address permit2, address weth9, address v3Factory, bytes32 poolInitCodeHash) {
         UNIVERSAL_ROUTER = IUniversalRouter(universal_router);
         PERMIT2 = IAllowanceTransfer(permit2);
         WETH9 = IWETH9(weth9);

@@ -35,10 +35,7 @@ abstract contract Dispatcher is
     /// @dev 2 masks are used to enable use of a nested-if statement in execution for efficiency reasons
     /// @return success True on success of the command, false on failure
     /// @return output The outputs or error messages, if any, from the command
-    function dispatch(
-        bytes1 commandType,
-        bytes calldata inputs
-    ) internal returns (bool success, bytes memory output) {
+    function dispatch(bytes1 commandType, bytes calldata inputs) internal returns (bool success, bytes memory output) {
         uint256 command = uint8(commandType & Commands.COMMAND_TYPE_MASK);
 
         success = true;
@@ -56,13 +53,9 @@ abstract contract Dispatcher is
                         assembly {
                             recipient := calldataload(inputs.offset)
                             amountIn := calldataload(add(inputs.offset, 0x20))
-                            amountOutMin := calldataload(
-                                add(inputs.offset, 0x40)
-                            )
+                            amountOutMin := calldataload(add(inputs.offset, 0x40))
                             // 0x60 offset is the path, decoded below
-                            payerIsUser := calldataload(
-                                add(inputs.offset, 0x80)
-                            )
+                            payerIsUser := calldataload(add(inputs.offset, 0x80))
                         }
                         bytes calldata path = inputs.toBytes(3);
                         address payer = payerIsUser ? lockedBy : address(this);
@@ -82,13 +75,9 @@ abstract contract Dispatcher is
                         assembly {
                             recipient := calldataload(inputs.offset)
                             amountOut := calldataload(add(inputs.offset, 0x20))
-                            amountInMax := calldataload(
-                                add(inputs.offset, 0x40)
-                            )
+                            amountInMax := calldataload(add(inputs.offset, 0x40))
                             // 0x60 offset is the path, decoded below
-                            payerIsUser := calldataload(
-                                add(inputs.offset, 0x80)
-                            )
+                            payerIsUser := calldataload(add(inputs.offset, 0x80))
                         }
                         bytes calldata path = inputs.toBytes(3);
                         address payer = payerIsUser ? lockedBy : address(this);
@@ -109,20 +98,13 @@ abstract contract Dispatcher is
                             recipient := calldataload(add(inputs.offset, 0x20))
                             amount := calldataload(add(inputs.offset, 0x40))
                         }
-                        permit2TransferFrom(
-                            token,
-                            lockedBy,
-                            map(recipient),
-                            amount
-                        );
+                        permit2TransferFrom(token, lockedBy, map(recipient), amount);
                     } else if (command == Commands.PERMIT2_PERMIT_BATCH) {
-                        (
-                            IAllowanceTransfer.PermitBatch memory permitBatch,
-
-                        ) = abi.decode(
-                                inputs,
-                                (IAllowanceTransfer.PermitBatch, bytes)
-                            );
+                        // equivalent: abi.decode(inputs, (IAllowanceTransfer.PermitBatch, bytes))
+                        IAllowanceTransfer.PermitBatch calldata permitBatch;
+                        assembly {
+                            permitBatch := add(inputs.offset, calldataload(inputs.offset))
+                        }
                         bytes calldata data = inputs.toBytes(1);
                         PERMIT2.permit(lockedBy, permitBatch, data);
                     } else if (command == Commands.SWEEP) {
@@ -173,25 +155,14 @@ abstract contract Dispatcher is
                         assembly {
                             recipient := calldataload(inputs.offset)
                             amountIn := calldataload(add(inputs.offset, 0x20))
-                            amountOutMin := calldataload(
-                                add(inputs.offset, 0x40)
-                            )
+                            amountOutMin := calldataload(add(inputs.offset, 0x40))
                             // 0x60 offset is the path, decoded below
-                            payerIsUser := calldataload(
-                                add(inputs.offset, 0xa0)
-                            )
+                            payerIsUser := calldataload(add(inputs.offset, 0xa0))
                         }
                         address[] calldata path = inputs.toAddressArray(3);
                         address[] calldata pairs = inputs.toAddressArray(4);
                         address payer = payerIsUser ? lockedBy : address(this);
-                        v2SwapExactInput(
-                            map(recipient),
-                            amountIn,
-                            amountOutMin,
-                            path,
-                            pairs,
-                            payer
-                        );
+                        v2SwapExactInput(map(recipient), amountIn, amountOutMin, path, pairs, payer);
                     } else if (command == Commands.V2_SWAP_EXACT_OUT) {
                         // equivalent: abi.decode(inputs, (address, uint256, uint256, address[], address[], bool))
                         address recipient;
@@ -201,25 +172,14 @@ abstract contract Dispatcher is
                         assembly {
                             recipient := calldataload(inputs.offset)
                             amountOut := calldataload(add(inputs.offset, 0x20))
-                            amountInMax := calldataload(
-                                add(inputs.offset, 0x40)
-                            )
+                            amountInMax := calldataload(add(inputs.offset, 0x40))
                             // 0x60 offset is the path, decoded below
-                            payerIsUser := calldataload(
-                                add(inputs.offset, 0xa0)
-                            )
+                            payerIsUser := calldataload(add(inputs.offset, 0xa0))
                         }
                         address[] calldata path = inputs.toAddressArray(3);
                         address[] calldata pairs = inputs.toAddressArray(4);
                         address payer = payerIsUser ? lockedBy : address(this);
-                        v2SwapExactOutput(
-                            map(recipient),
-                            amountOut,
-                            amountInMax,
-                            path,
-                            pairs,
-                            payer
-                        );
+                        v2SwapExactOutput(map(recipient), amountOut, amountInMax, path, pairs, payer);
                     } else if (command == Commands.PERMIT2_PERMIT) {
                         // equivalent: abi.decode(inputs, (IAllowanceTransfer.PermitSingle, bytes))
                         IAllowanceTransfer.PermitSingle calldata permitSingle;
@@ -246,14 +206,14 @@ abstract contract Dispatcher is
                             amountMin := calldataload(add(inputs.offset, 0x20))
                         }
                         unwrapWETH9(map(recipient), amountMin);
-                    } else if (
-                        command == Commands.PERMIT2_TRANSFER_FROM_BATCH
-                    ) {
-                        IAllowanceTransfer.AllowanceTransferDetails[]
-                            memory batchDetails = abi.decode(
-                                inputs,
-                                (IAllowanceTransfer.AllowanceTransferDetails[])
-                            );
+                    } else if (command == Commands.PERMIT2_TRANSFER_FROM_BATCH) {
+                        // equivalent: abi.decode(inputs, (IAllowanceTransfer.AllowanceTransferDetails[]))
+                        IAllowanceTransfer.AllowanceTransferDetails[] calldata batchDetails;
+                        (uint256 length, uint256 offset) = inputs.toLengthOffset(0);
+                        assembly {
+                            batchDetails.length := length
+                            batchDetails.offset := offset
+                        }
                         permit2TransferFrom(batchDetails, lockedBy);
                     } else if (command == Commands.BALANCE_CHECK_ERC20) {
                         // equivalent: abi.decode(inputs, (address, address, uint256))
@@ -266,8 +226,7 @@ abstract contract Dispatcher is
                             minBalance := calldataload(add(inputs.offset, 0x40))
                         }
                         success = (ERC20(token).balanceOf(owner) >= minBalance);
-                        if (!success)
-                            output = abi.encodePacked(BalanceTooLow.selector);
+                        if (!success) output = abi.encodePacked(BalanceTooLow.selector);
                     } else {
                         // placeholder area for command 0x0f
                         revert InvalidCommandType(command);
@@ -281,11 +240,7 @@ abstract contract Dispatcher is
                 bytes calldata _commands = inputs.toBytes(0);
                 bytes[] calldata _inputs = inputs.toBytesArray(1);
                 (success, output) = (address(this)).call(
-                    abi.encodeWithSelector(
-                        Dispatcher.execute.selector,
-                        _commands,
-                        _inputs
-                    )
+                    abi.encodeWithSelector(Dispatcher.execute.selector, _commands, _inputs)
                 );
             } else if (command == Commands.APPROVE_ERC20) {
                 address token;
@@ -305,12 +260,7 @@ abstract contract Dispatcher is
                     tokenOut := calldataload(add(inputs.offset, 0x20))
                     amountOut := calldataload(add(inputs.offset, 0x40))
                 }
-                flashSwap(
-                    IUniswapV2Pair(pair),
-                    tokenOut,
-                    amountOut,
-                    inputs.toBytes(3)
-                );
+                flashSwap(IUniswapV2Pair(pair), tokenOut, amountOut, inputs.toBytes(3));
             } else {
                 // placeholder area for commands 0x22-0x3f
                 revert InvalidCommandType(command);
@@ -321,8 +271,5 @@ abstract contract Dispatcher is
     /// @notice Executes encoded commands along with provided inputs.
     /// @param commands A set of concatenated commands, each 1 byte in length
     /// @param inputs An array of byte strings containing abi encoded inputs for each command
-    function execute(
-        bytes calldata commands,
-        bytes[] calldata inputs
-    ) external payable virtual;
+    function execute(bytes calldata commands, bytes[] calldata inputs) external payable virtual;
 }

@@ -14,15 +14,7 @@ contract MuniversalRouter is IUniversalRouter, Dispatcher {
         address weth9,
         address v3Factory,
         bytes32 poolInitCodeHash
-    )
-        RouterImmutables(
-            universal_router,
-            permit2,
-            weth9,
-            v3Factory,
-            poolInitCodeHash
-        )
-    {}
+    ) RouterImmutables(universal_router, permit2, weth9, v3Factory, poolInitCodeHash) {}
 
     modifier checkDeadline(uint256 deadline) {
         if (block.timestamp > deadline) revert TransactionDeadlinePassed();
@@ -39,10 +31,7 @@ contract MuniversalRouter is IUniversalRouter, Dispatcher {
     }
 
     /// @inheritdoc Dispatcher
-    function execute(
-        bytes calldata commands,
-        bytes[] calldata inputs
-    ) public payable override isNotLocked {
+    function execute(bytes calldata commands, bytes[] calldata inputs) public payable override isNotLocked {
         bool success;
         bytes memory output;
         uint256 numCommands = commands.length;
@@ -57,10 +46,7 @@ contract MuniversalRouter is IUniversalRouter, Dispatcher {
             (success, output) = dispatch(command, input);
 
             if (!success && successRequired(command)) {
-                revert ExecutionFailed({
-                    commandIndex: commandIndex,
-                    message: output
-                });
+                revert ExecutionFailed({commandIndex: commandIndex, message: output});
             }
 
             unchecked {

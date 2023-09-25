@@ -15,26 +15,12 @@ abstract contract V2SwapRouter is Permit2Payments {
     error V2InvalidPath();
 
     /// @dev Perform a V2 flash swap without sending tokens beforehand
-    function flashSwap(
-        IUniswapV2Pair pair,
-        address tokenOut,
-        uint256 amountOut,
-        bytes calldata data
-    ) internal {
-        (uint256 amount0Out, uint256 amount1Out) = TernaryLib.switchIf(
-            tokenOut == pair.token0(),
-            0,
-            amountOut
-        );
+    function flashSwap(IUniswapV2Pair pair, address tokenOut, uint256 amountOut, bytes calldata data) internal {
+        (uint256 amount0Out, uint256 amount1Out) = TernaryLib.switchIf(tokenOut == pair.token0(), 0, amountOut);
         pair.swap(amount0Out, amount1Out, address(this), data);
     }
 
-    function _v2Swap(
-        address[] calldata path,
-        address[] calldata pairs,
-        address recipient,
-        address pair
-    ) private {
+    function _v2Swap(address[] calldata path, address[] calldata pairs, address recipient, address pair) private {
         unchecked {
             if (path.length < 2) revert V2InvalidPath();
 
@@ -47,40 +33,24 @@ abstract contract V2SwapRouter is Permit2Payments {
                 uint256 amount0Out;
                 uint256 amount1Out;
                 {
-                    (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(
-                        pair
-                    ).getReserves();
-                    (uint256 reserveInput, uint256 reserveOutput) = TernaryLib
-                        .switchIf(input == token0, reserve1, reserve0);
-                    uint256 amountInput = ERC20(input).balanceOf(pair) -
-                        reserveInput;
-                    uint256 amountOutput = UniswapV2Library.getAmountOut(
-                        amountInput,
-                        reserveInput,
-                        reserveOutput
-                    );
-                    (amount0Out, amount1Out) = TernaryLib.switchIf(
+                    (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(pair).getReserves();
+                    (uint256 reserveInput, uint256 reserveOutput) = TernaryLib.switchIf(
                         input == token0,
-                        amountOutput,
-                        0
+                        reserve1,
+                        reserve0
                     );
+                    uint256 amountInput = ERC20(input).balanceOf(pair) - reserveInput;
+                    uint256 amountOutput = UniswapV2Library.getAmountOut(amountInput, reserveInput, reserveOutput);
+                    (amount0Out, amount1Out) = TernaryLib.switchIf(input == token0, amountOutput, 0);
                 }
                 address nextPair;
                 if (i < penultimatePathIndex) {
                     nextPair = pairs[i + 1];
-                    (token0, ) = TernaryLib.sortTokens(
-                        path[i + 1],
-                        path[i + 2]
-                    );
+                    (token0, ) = TernaryLib.sortTokens(path[i + 1], path[i + 2]);
                 } else {
                     (nextPair, token0) = (recipient, address(0));
                 }
-                IUniswapV2Pair(pair).swap(
-                    amount0Out,
-                    amount1Out,
-                    nextPair,
-                    new bytes(0)
-                );
+                IUniswapV2Pair(pair).swap(amount0Out, amount1Out, nextPair, new bytes(0));
                 pair = nextPair;
             }
         }
@@ -139,8 +109,7 @@ abstract contract V2SwapRouter is Permit2Payments {
         unchecked {
             if (pairs.length != path.length - 1) revert V2InvalidPath();
         }
-        (uint256 amountIn, address firstPair) = UniswapV2Library
-            .getAmountInMultihop(amountOut, path, pairs);
+        (uint256 amountIn, address firstPair) = UniswapV2Library.getAmountInMultihop(amountOut, path, pairs);
         if (amountIn > amountInMaximum) revert V2TooMuchRequested();
 
         payOrPermit2Transfer(path[0], payer, firstPair, amountIn);
